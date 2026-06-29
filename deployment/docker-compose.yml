@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: whatsapp_panel_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-whatsapp_panel}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - wp-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: whatsapp_panel_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - wp-net
+
+  backend:
+    build:
+      context: ../backend
+    container_name: whatsapp_panel_backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-user}:${DB_PASSWORD:-password}@postgres:5432/${DB_NAME:-whatsapp_panel}?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PORT=5005
+      - JWT_SECRET=${JWT_SECRET:-super-secret-key-12345}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-super-secret-encryption-key-1234567890}
+      - ENCRYPTION_SECRET=${ENCRYPTION_KEY:-super-secret-encryption-key-1234567890}
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "127.0.0.1:5005:5005"
+    networks:
+      - wp-net
+
+  worker:
+    build:
+      context: ../backend
+    container_name: whatsapp_panel_worker
+    restart: always
+    command: node workers/workflowWorker.js
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-user}:${DB_PASSWORD:-password}@postgres:5432/${DB_NAME:-whatsapp_panel}?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NODE_ENV=production
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-super-secret-encryption-key-1234567890}
+      - ENCRYPTION_SECRET=${ENCRYPTION_KEY:-super-secret-encryption-key-1234567890}
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - wp-net
+
+  frontend:
+    build:
+      context: ../frontend-user
+      args:
+        VITE_API_URL: ${VITE_API_URL:-https://api.yourdomain.com}
+    container_name: whatsapp_panel_frontend
+    ports:
+      - "127.0.0.1:3001:80"
+    restart: always
+    networks:
+      - wp-net
+
+  admin-frontend:
+    build:
+      context: ../frontend-admin
+      args:
+        VITE_API_URL: ${VITE_API_URL:-https://api.yourdomain.com}
+    container_name: whatsapp_panel_admin
+    ports:
+      - "127.0.0.1:3002:80"
+    restart: always
+    networks:
+      - wp-net
+
+volumes:
+  postgres_data:
+    name: whatsapp-panel-distribution_postgres_data
+  redis_data:
+    name: whatsapp-panel-distribution_redis_data
+
+networks:
+  wp-net:
+    driver: bridge

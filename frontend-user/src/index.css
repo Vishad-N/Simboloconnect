@@ -1,0 +1,401 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-200: #99f6e4;
+  --color-brand-300: #5eead4;
+  --color-brand-400: #00e5af;
+  --color-brand-500: #00d9a5;
+  --color-brand-600: #00b085;
+  --color-brand-700: #008f6b;
+  --color-brand-800: #007355;
+  --color-brand-900: #005c43;
+
+  --color-surface-50: #ffffff;
+  --color-surface-100: #f4f4f5;
+  --color-surface-200: #e4e4e7;
+  --color-surface-300: #d4d4d8;
+  --color-surface-400: #9ca3af;
+  --color-surface-500: #71717a;
+  --color-surface-600: #3f3f46;
+  --color-surface-700: #0f0f0f;
+  --color-surface-800: #0a0a0a;
+  --color-surface-900: #040404;
+  --color-surface-950: #000000;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+
+  --animate-fade-in: fadeIn 0.5s ease-out;
+  --animate-slide-up: slideUp 0.5s ease-out;
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-surface-900 text-surface-50 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-surface-800/60 backdrop-blur-xl border border-white/5 shadow-2xl rounded-[20px];
+  }
+
+  .btn-primary {
+    @apply bg-brand-500 hover:bg-brand-400 text-surface-950 font-semibold py-2.5 px-5 rounded-[14px] transition-all duration-300 transform hover:-translate-y-0.5 shadow-[0_0_15px_rgba(0,217,165,0.25)] hover:shadow-[0_0_25px_rgba(0,217,165,0.4)] active:scale-95 flex items-center justify-center gap-2;
+    color: #050505 !important;
+  }
+
+  .btn-secondary {
+    @apply bg-surface-700 hover:bg-white/10 border border-white/5 text-surface-50 font-medium py-2.5 px-5 rounded-[14px] transition-all duration-300 transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2;
+  }
+
+  .input-field {
+    @apply bg-surface-900/50 border-white/5 focus:border-brand-500/50 focus:bg-surface-900 text-surface-50 rounded-[14px] px-4 py-3 outline-none transition-all duration-300 border w-full focus:shadow-[0_0_15px_rgba(0,217,165,0.1)];
+  }
+}
+
+/* Custom Scrollbar for sleekness */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00d9a5;
+  box-shadow: 0 0 10px rgba(0, 217, 165, 0.5);
+}
+/* Fix react-phone-input-2 Dropdown Visibility on Dark Themes / Body Text */
+.react-tel-input .country-list {
+  background-color: white !important;
+  color: #0f172a !important; /* surface-900 */
+}
+.react-tel-input .country-list .country-name {
+  color: #0f172a !important;
+}
+.react-tel-input .country-list .dial-code {
+  color: #475569 !important; /* surface-600 */
+}
+.react-tel-input .country-list .country:hover {
+  background-color: #f1f5f9 !important; /* surface-100 */
+}
+.react-tel-input .country-list .search-box {
+  background-color: white !important;
+  color: #0f172a !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   FRESH LIGHT THEME — Complete Inner Panel Override
+   Scoped to .fl-content — Classic dark theme is NEVER touched.
+
+   Core strategy: Re-map CSS variables inside .fl-content so that
+   ALL Tailwind classes including opacity variants (/80, /60, /40)
+   automatically use the light palette without individual overrides.
+   ══════════════════════════════════════════════════════════════════ */
+
+.fl-content {
+  /* ── Re-map surface palette: dark → light white/green ── */
+  --color-surface-950: #f0fdf5;
+  --color-surface-900: #ffffff;
+  --color-surface-800: #f3fbf6;
+  --color-surface-700: #e8f5ee;
+  --color-surface-600: #d5eddf;
+  --color-surface-500: #7aad8e;
+  --color-surface-400: #4d7a62;
+  --color-surface-300: #2d5c42;
+  --color-surface-200: #1a3825;
+  --color-surface-100: #0b1e12;
+  --color-surface-50:  #0b1e12;
+
+  /* ── Re-map brand → WhatsApp green ── */
+  --color-brand-500: #25D366;
+  --color-brand-400: #00df6a;
+  --color-brand-600: #128C7E;
+  --color-brand-300: #00b894;
+  --color-brand-200: #9ae8c0;
+
+  /* ── Base ── */
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  background: #f3fbf6 !important;
+  color: #0b1e12 !important;
+}
+
+/* Glass panel — used by many cards */
+.fl-content .glass-panel {
+  background: rgba(255,255,255,0.95) !important;
+  border: 1px solid #cde9d8 !important;
+  box-shadow: 0 4px 24px rgba(37,211,102,0.08) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+/* Buttons */
+.fl-content .btn-primary {
+  background: linear-gradient(135deg, #25D366, #00df6a) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(37,211,102,0.32) !important;
+}
+.fl-content .btn-primary:hover {
+  background: linear-gradient(135deg, #1db954, #00cc5a) !important;
+  box-shadow: 0 8px 22px rgba(37,211,102,0.45) !important;
+}
+.fl-content .btn-secondary,
+.fl-content .btn-ghost {
+  background: #ffffff !important;
+  border: 1.5px solid #cde9d8 !important;
+  color: #128C7E !important;
+}
+.fl-content .btn-secondary:hover,
+.fl-content .btn-ghost:hover {
+  background: #f0fdf5 !important;
+  border-color: #25D366 !important;
+}
+
+/* Input field component */
+.fl-content .input-field {
+  background: #f3fbf6 !important;
+  border: 1.5px solid #cde9d8 !important;
+  color: #0b1e12 !important;
+}
+.fl-content .input-field:focus {
+  border-color: #25D366 !important;
+  box-shadow: 0 0 0 3px rgba(37,211,102,0.12) !important;
+  background: #ffffff !important;
+}
+
+/* All native form elements */
+.fl-content input:not([type="checkbox"]):not([type="radio"]),
+.fl-content select,
+.fl-content textarea {
+  background: #f3fbf6 !important;
+  border-color: #cde9d8 !important;
+  color: #0b1e12 !important;
+}
+.fl-content input:focus,
+.fl-content select:focus,
+.fl-content textarea:focus {
+  border-color: #25D366 !important;
+  box-shadow: 0 0 0 3px rgba(37,211,102,0.12) !important;
+  background: #ffffff !important;
+}
+.fl-content input::placeholder,
+.fl-content textarea::placeholder { color: #7aad8e !important; }
+.fl-content label { color: #0b1e12 !important; }
+
+/* border-white/* → green border */
+.fl-content [class*="border-white\/"] { border-color: #cde9d8 !important; }
+
+/* Tables */
+.fl-content table { background: #ffffff !important; }
+.fl-content thead th {
+  background: #f3fbf6 !important;
+  color: #4d7a62 !important;
+  border-color: #cde9d8 !important;
+}
+.fl-content tbody td { color: #0b1e12 !important; border-color: #e8f5ee !important; }
+.fl-content tbody tr:hover td { background: #f0fdf5 !important; }
+
+/* Status badges */
+.fl-content .bg-green-900  { background: #dcfce7 !important; }
+.fl-content .text-green-300,.fl-content .text-green-400 { color: #16a34a !important; }
+.fl-content .bg-red-900    { background: #fee2e2 !important; }
+.fl-content .text-red-300,.fl-content .text-red-400  { color: #dc2626 !important; }
+.fl-content .bg-yellow-900 { background: #fef9c3 !important; }
+.fl-content .text-yellow-300,.fl-content .text-yellow-400 { color: #ca8a04 !important; }
+.fl-content .bg-blue-900   { background: #dbeafe !important; }
+.fl-content .text-blue-300,.fl-content .text-blue-400 { color: #2563eb !important; }
+
+/* Chat panel active contact highlight */
+.fl-content [class*="shadow-\[inset_3px"] {
+  box-shadow: inset 3px 0 0 #25D366 !important;
+}
+
+/* Headings */
+.fl-content h1,.fl-content h2,.fl-content h3,
+.fl-content h4,.fl-content h5,.fl-content h6 { color: #0b1e12 !important; }
+
+/* Scrollbars */
+.fl-content ::-webkit-scrollbar { width: 4px; height: 4px; }
+.fl-content ::-webkit-scrollbar-track { background: transparent; }
+.fl-content ::-webkit-scrollbar-thumb { background: #b8dfc8; border-radius: 4px; }
+.fl-content ::-webkit-scrollbar-thumb:hover { background: #25D366; }
+
+/* Global focus reset for the light theme */
+.fl-content *:focus,
+.fl-content *:focus-within,
+.fl-content *:focus-visible {
+  --tw-ring-color: rgba(37, 211, 102, 0.5) !important;
+  outline-color: #25D366 !important;
+}
+
+/* ══ END FRESH LIGHT THEME ══ */
+
+.fl-content {
+  /* ── Re-map surface palette: dark → light white/green ── */
+  --color-surface-950: #f0fdf5;
+  --color-surface-900: #ffffff;
+  --color-surface-800: #f3fbf6;
+  --color-surface-700: #e8f5ee;
+  --color-surface-600: #d5eddf;
+  --color-surface-500: #7aad8e;
+  --color-surface-400: #4d7a62;
+  --color-surface-300: #2d5c42;
+  --color-surface-200: #1a3825;
+  --color-surface-100: #0b1e12;
+  --color-surface-50:  #0b1e12;
+
+  /* ── Re-map brand → WhatsApp green ── */
+  --color-brand-500: #25D366;
+  --color-brand-400: #00df6a;
+  --color-brand-600: #128C7E;
+  --color-brand-300: #00b894;
+  --color-brand-200: #9ae8c0;
+
+  /* ── Base ── */
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  background: #f3fbf6 !important;
+  color: #0b1e12 !important;
+}
+
+/* Glass panel — used by many cards */
+.fl-content .glass-panel {
+  background: rgba(255,255,255,0.95) !important;
+  border: 1px solid #cde9d8 !important;
+  box-shadow: 0 4px 24px rgba(37,211,102,0.08) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+/* Buttons */
+.fl-content .btn-primary {
+  background: linear-gradient(135deg, #25D366, #00df6a) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(37,211,102,0.32) !important;
+}
+.fl-content .btn-primary:hover {
+  background: linear-gradient(135deg, #1db954, #00cc5a) !important;
+  box-shadow: 0 8px 22px rgba(37,211,102,0.45) !important;
+}
+.fl-content .btn-secondary,
+.fl-content .btn-ghost {
+  background: #ffffff !important;
+  border: 1.5px solid #cde9d8 !important;
+  color: #128C7E !important;
+}
+.fl-content .btn-secondary:hover,
+.fl-content .btn-ghost:hover {
+  background: #f0fdf5 !important;
+  border-color: #25D366 !important;
+}
+
+/* Input field component */
+.fl-content .input-field {
+  background: #f3fbf6 !important;
+  border: 1.5px solid #cde9d8 !important;
+  color: #0b1e12 !important;
+}
+.fl-content .input-field:focus {
+  border-color: #25D366 !important;
+  box-shadow: 0 0 0 3px rgba(37,211,102,0.12) !important;
+  background: #ffffff !important;
+}
+
+/* All native form elements */
+.fl-content input:not([type="checkbox"]):not([type="radio"]),
+.fl-content select,
+.fl-content textarea {
+  background: #f3fbf6 !important;
+  border-color: #cde9d8 !important;
+  color: #0b1e12 !important;
+}
+.fl-content input:focus,
+.fl-content select:focus,
+.fl-content textarea:focus {
+  border-color: #25D366 !important;
+  box-shadow: 0 0 0 3px rgba(37,211,102,0.12) !important;
+  background: #ffffff !important;
+}
+.fl-content input::placeholder,
+.fl-content textarea::placeholder { color: #7aad8e !important; }
+.fl-content label { color: #0b1e12 !important; }
+
+/* border-white/* → green border */
+.fl-content [class*="border-white\/"] { border-color: #cde9d8 !important; }
+
+/* Tables */
+.fl-content table { background: #ffffff !important; }
+.fl-content thead th {
+  background: #f3fbf6 !important;
+  color: #4d7a62 !important;
+  border-color: #cde9d8 !important;
+}
+.fl-content tbody td { color: #0b1e12 !important; border-color: #e8f5ee !important; }
+.fl-content tbody tr:hover td { background: #f0fdf5 !important; }
+
+/* Status badges */
+.fl-content .bg-green-900  { background: #dcfce7 !important; }
+.fl-content .text-green-300,.fl-content .text-green-400 { color: #16a34a !important; }
+.fl-content .bg-red-900    { background: #fee2e2 !important; }
+.fl-content .text-red-300,.fl-content .text-red-400  { color: #dc2626 !important; }
+.fl-content .bg-yellow-900 { background: #fef9c3 !important; }
+.fl-content .text-yellow-300,.fl-content .text-yellow-400 { color: #ca8a04 !important; }
+.fl-content .bg-blue-900   { background: #dbeafe !important; }
+.fl-content .text-blue-300,.fl-content .text-blue-400 { color: #2563eb !important; }
+
+/* Chat panel active contact highlight */
+.fl-content [class*="shadow-\[inset_3px"] {
+  box-shadow: inset 3px 0 0 #25D366 !important;
+}
+
+/* Headings */
+.fl-content h1,.fl-content h2,.fl-content h3,
+.fl-content h4,.fl-content h5,.fl-content h6 { color: #0b1e12 !important; }
+
+/* Scrollbars */
+.fl-content ::-webkit-scrollbar { width: 4px; height: 4px; }
+.fl-content ::-webkit-scrollbar-track { background: transparent; }
+.fl-content ::-webkit-scrollbar-thumb { background: #b8dfc8; border-radius: 4px; }
+.fl-content ::-webkit-scrollbar-thumb:hover { background: #25D366; }
+
+/* Global focus reset for the light theme */
+.fl-content *:focus,
+.fl-content *:focus-within,
+.fl-content *:focus-visible {
+  --tw-ring-color: rgba(37, 211, 102, 0.5) !important;
+  outline-color: #25D366 !important;
+}
+
+/* ══ END FRESH LIGHT THEME ══ */

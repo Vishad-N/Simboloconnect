@@ -1,0 +1,1204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  STAFF
+  ADMIN_STAFF
+}
+
+model User {
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  password           String
+  name               String?   @default("Test Account")
+  phone              String?
+  logo               String?
+  role               Role      @default(ADMIN)
+  permissions        Json? // Stores an array of allowed permissions for STAFF
+  isActive           Boolean   @default(true) // For suspending accounts
+  isEmailVerified    Boolean   @default(false)
+  usedFreePlan       Boolean   @default(false) // Tracks if user already activated a free plan
+  otp                String?
+  otpExpiresAt       DateTime?
+  validityExpiresAt  DateTime? // Subscription expiration date
+  message_limit      Int?
+  contact_limit      Int?
+  campaigns_limit    Int?
+  bot_replies_limit  Int?
+  bot_flows_limit    Int?
+  team_members_limit Int?
+
+  planId String?
+  plan   Plan?   @relation(fields: [planId], references: [id])
+
+  adminId String? // Links a STAFF user to their ADMIN
+  admin   User?   @relation("TeamMembers", fields: [adminId], references: [id])
+  staff   User[]  @relation("TeamMembers")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Encrypted Meta Tokens
+  metaToken       String?
+  metaTokenExpiry DateTime?
+  phoneNumberId   String?
+  wabaId          String?
+  businessId      String?
+
+  // Meta Oauth Config
+  metaAppId     String?
+  metaAppSecret String?
+  configId      String?
+
+  // Chatbot Settings
+  botEnabled   Boolean @default(false)
+  botPrompt    String? // The system context instruction
+  aiProvider   String? // e.g., "gemini", "openai", "webhook", "none", "openrouter", "nvidianim"
+  aiApiKey     String?
+  aiWebhookUrl String?
+  aiModel      String?
+
+  // Integrations
+  googleClientId     String?
+  googleClientSecret String?
+  googleRefreshToken String?
+  googleCalendarId   String?
+
+  // Outbound Webhook Forwarding
+  webhookUrl     String?
+  webhookEnabled Boolean   @default(false)
+
+  // External API Token (for n8n, Zapier, etc.)
+  apiToken       String?   @unique
+
+
+  knowledgeDocs KnowledgeDocument[]
+
+  contacts       Contact[]
+  templates      Template[]
+  campaigns      Campaign[]
+  notifications  Notification[]
+  messages       MessageLog[]
+  chatbotFlows   ChatbotFlow[]
+  visualFlows    VisualFlow[]
+  autoReplies    AutoReply[]
+  flowProjects   FlowProject[]
+  flowExecutions FlowExecution[]
+
+  otpVerifications     OtpVerification[]
+  smtpConfig           SmtpConfig?
+  wallet               Wallet?
+  transactions         Transaction[]
+  assignedContacts     Contact[]             @relation("AssignedContacts")
+  conversationComments ConversationComment[] @relation("WorkspaceComments")
+  authoredComments     ConversationComment[] @relation("CommentAuthor")
+
+  aiAgent              AiAgent?
+  aiActionLogs         AiActionLog[]
+  aiUsageLogs          AiUsageLog[]
+  paymentCredentials   PaymentCredential[]
+  voiceProviders       UserVoiceProvider[]
+  paymentGateways      PaymentGateway[]
+  subscriptions        Subscription[]
+  subscriptionInvoices SubscriptionInvoice[]
+  signupAutomationLogs SignupAutomationLog[]
+}
+
+model SmtpConfig {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  host           String
+  port           Int
+  username       String
+  password       String
+  senderName     String
+  senderEmail    String
+  encryptionType String?  @default("TLS") // TLS, SSL, NONE
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AiAgent {
+  id               String   @id @default(uuid())
+  userId           String   @unique // Acts as workspaceId
+  name             String   @default("Workspace Assistant")
+  systemPrompt     String?  @db.Text
+  promptVersion    Int      @default(1)
+  toolsEnabled     Json     @default("[\"search_products\", \"create_payment_link\", \"search_customer\", \"get_order_status\", \"escalate_to_human\"]")
+  useOwnAi         Boolean  @default(false)
+  sandboxMode      Boolean  @default(false)
+  model            String   @default("gpt-4o")
+  isActive         Boolean  @default(true)
+  knowledgeWebsite String?
+  knowledgePdf     String?
+  aiErrorResponses Json?
+  signupAutomation Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AiActionLog {
+  id              String   @id @default(uuid())
+  userId          String // Acts as workspaceId
+  contactId       String
+  toolName        String
+  input           Json
+  output          Json?
+  beforeState     Json?
+  afterState      Json?
+  status          String   @default("PENDING") // SUCCESS, FAILED, PENDING, REJECTED
+  executionTimeMs Int?
+  retries         Int      @default(0)
+  isSandbox       Boolean  @default(false)
+  executedAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, contactId])
+}
+
+model AiUsageLog {
+  id               String   @id @default(uuid())
+  userId           String // Acts as workspaceId
+  model            String
+  provider         String   @default("openai")
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  estimatedCost    Decimal  @default(0.0)
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
+}
+
+model Contact {
+  id               String    @id @default(uuid())
+  userId           String
+  name             String
+  phone            String
+  tags             String[]
+  bot_paused_until DateTime? // Disables bot if staff replies manually
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  customFields     Json?     // Store dynamic variables like city, course, amount
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  assignedToId  String?
+  assignedTo    User?   @relation("AssignedContacts", fields: [assignedToId], references: [id])
+  internalNotes String?
+  status        String  @default("OPEN") // OPEN, RESOLVED, PENDING
+
+  @@unique([userId, phone]) // A user cannot have the same phone number twice
+  @@index([userId]) // Speed up contact lookups by user
+}
+
+model Template {
+  id         String   @id @default(uuid())
+  userId     String
+  name       String
+  language   String
+  category   String
+  body       String
+  status     String   @default("APPROVED") // APPROVED, PENDING, REJECTED
+  components Json // Store header/buttons data
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns Campaign[]
+}
+
+model Campaign {
+  id              String    @id @default(uuid())
+  userId          String
+  name            String
+  scheduledAt     DateTime?
+  status          String    @default("PENDING") // SCHEDULED, RUNNING, COMPLETED, FAILED, CANCELLED
+  targetTags      String[]
+  targetPhones    String[]  @default([]) // Added for future retargeting
+  templateId      String
+  variablesConfig Json?     // Store dynamic variable mapping for scheduled campaigns
+  mediaUrl        String?   // Store media URL for headers for scheduled campaigns
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template Template     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  messages MessageLog[] // Added relation to track messages sent by this campaign
+}
+
+model MessageLog {
+  id         String   @id @default(uuid())
+  userId     String
+  messageId  String   @unique // Meta's Message ID
+  recipient  String
+  direction  String   @default("OUTBOUND") // OUTBOUND, INBOUND
+  status     String   @default("SENT") // SENT, DELIVERED, READ, FAILED
+  content    Json? // Optional content for inbound messages
+  timestamp  DateTime @default(now())
+  campaignId String? // Optional relation to Campaign
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  visibleInChat Boolean @default(true)
+
+  // Performance indexes — critical for fast queries
+  @@index([userId, recipient]) // Chat contacts list lookup
+  @@index([userId, direction, status]) // Analytics count queries
+  @@index([userId, campaignId]) // Campaign stats groupBy
+  @@index([userId, recipient, direction, status]) // Unread count queries
+  @@index([timestamp]) // Sorting by latest message
+}
+
+model ChatbotFlow {
+  id         String   @id @default(uuid())
+  userId     String
+  trigger    String // The keyword or phrase to match
+  actionType String // e.g., "TEXT", "TEMPLATE"
+  response   Json // The response payload
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AutoReply {
+  id              String   @id @default(uuid())
+  userId          String
+  trigger_keyword String
+  match_type      String   @default("EXACT") // EXACT, PARTIAL
+  reply_content   String?  @db.Text
+  media_url       String?
+  action_type     String   @default("TEXT") // 'TEXT' or 'TEMPLATE'
+  template_id     String?
+  template_name   String?
+  template_lang   String?
+  is_active       Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, is_active])
+}
+
+model VisualFlow {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  trigger     String // e.g., 'ALL_MESSAGES' or specific keyword
+  nodes       Json // React Flow nodes
+  edges       Json // React Flow edges
+  isActive    Boolean  @default(false)
+  status      String   @default("DRAFT") // DRAFT, PUBLISHED, PAUSED, ARCHIVED
+  projectId   String? // Optional: group flows into projects
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project    FlowProject?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  executions FlowExecution[]
+}
+
+model FlowSession {
+  id            String   @id @default(uuid())
+  userId        String
+  contactPhone  String
+  flowId        String
+  currentNodeId String // Which node is the user currently paused at?
+  stateData     Json? // Store user replies and variables
+  status        String   @default("WAITING_REPLY") // WAITING_REPLY, COMPLETED
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, contactPhone]) // One active session per user contact
+}
+
+model FlowProject {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  color       String   @default("#00d9a5")
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flows VisualFlow[]
+
+  @@index([userId])
+}
+
+model FlowExecution {
+  id           String   @id @default(uuid())
+  userId       String
+  flowId       String
+  contactPhone String
+  trigger      String // The incoming message that triggered this execution
+  status       String   @default("COMPLETED") // COMPLETED, FAILED, RUNNING
+  steps        Json // Array of executed node steps with status
+  durationMs   Int? // Execution duration in milliseconds
+  createdAt    DateTime @default(now())
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flow VisualFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@index([userId, flowId])
+  @@index([userId, createdAt])
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WebhookLog {
+  id        String   @id @default(uuid())
+  payload   Json
+  source    String // e.g., "META", "CUSTOM_AI"
+  createdAt DateTime @default(now())
+}
+
+model Plan {
+  id                 String   @id @default(uuid())
+  name               String
+  price              Float
+  duration_days      Int
+  features_json      Json // Stores display features list
+  // Enforceable Limits
+  message_limit      Int      @default(1000)
+  contacts_limit     Int      @default(1000)
+  campaigns_limit    Int      @default(60)
+  bot_replies_limit  Int      @default(1000)
+  bot_flows_limit    Int      @default(5)
+  team_members_limit Int      @default(3)
+  
+  // Custom Feature Toggles
+  allow_campaigns    Boolean  @default(true)
+  allow_flow_builder Boolean  @default(true)
+  allow_ai_brain     Boolean  @default(true)
+  allow_ai_voice     Boolean  @default(true)
+  allow_qna          Boolean  @default(true)
+  allow_ecommerce    Boolean  @default(true)
+  allow_integrations Boolean  @default(true)
+  allow_team         Boolean  @default(true)
+
+  is_default_free    Boolean  @default(false)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  users User[]
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  adminId      String // ID of the SUPERADMIN who performed the action
+  action       String // e.g., "UPDATE_LIMITS", "EXTEND_VALIDITY", "SUSPEND_USER"
+  targetUserId String? // ID of the user affected
+  details      Json? // Specific changes made
+  createdAt    DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model ConversationComment {
+  id           String   @id @default(uuid())
+  userId       String
+  contactPhone String
+  authorId     String
+  text         String
+  createdAt    DateTime @default(now())
+
+  user   User @relation("WorkspaceComments", fields: [userId], references: [id], onDelete: Cascade)
+  author User @relation("CommentAuthor", fields: [authorId], references: [id])
+
+  @@index([userId, contactPhone])
+}
+
+model SmsGateway {
+  id           String   @id @default(uuid())
+  provider     String   @unique // TWILIO, MSG91, FAST2SMS, PLIVO, VONAGE, CUSTOM
+  config_json  Json // Stores credentials like API keys securely
+  is_primary   Boolean  @default(false)
+  is_secondary Boolean  @default(false)
+  status       String   @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model OtpVerification {
+  id           String   @id @default(uuid())
+  userId       String
+  channel_type String // EMAIL, SMS, WHATSAPP
+  context      String // SIGNUP, FORGOT_PASSWORD
+  otp_code     String
+  expires_at   DateTime
+  is_verified  Boolean  @default(false)
+  attempts     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, context])
+}
+
+model KnowledgeDocument {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String // e.g., "PDF", "URL", "TEXT"
+  name      String // Document filename or URL
+  content   String // Extracted textual content
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Wallet {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  currentBalance Decimal  @default(0.0) // Default zero balance
+  currency       String   @default("INR")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  userId      String
+  amount      Decimal
+  type        String // CREDIT, DEBIT
+  category    String? // MARKETING, UTILITY, SERVICE, AUTHENTICATION, TOPUP
+  description String?
+  timestamp   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PricingRate {
+  id        String   @id @default(uuid())
+  category  String   @unique // MARKETING, UTILITY, AUTHENTICATION, SERVICE
+  baseCost  Decimal  @default(0.0)
+  markup    Decimal  @default(0.0)
+  updatedAt DateTime @updatedAt
+}
+
+// ──────────────────────────────────────────────────────────────
+// ECOMMERCE INTEGRATION MODULE
+// ──────────────────────────────────────────────────────────────
+
+/// Connected ecommerce store (Shopify or WooCommerce)
+model EcomStore {
+  id         String  @id @default(uuid())
+  userId     String
+  platform   String // shopify | woocommerce
+  storeName  String
+  domain     String
+  storeOwner String?
+  currency   String? @default("INR")
+  timezone   String? @default("Asia/Kolkata")
+  status     String  @default("connected") // connected | disconnected | error
+
+  // Credentials (store encrypted in production via KMS)
+  accessToken String? @db.Text
+  apiKey      String?
+  apiSecret   String? @db.Text
+
+  // Sync metadata
+  syncStatus    String?   @default("pending") // pending | syncing | synced | error
+  webhookStatus String?   @default("pending") // pending | registered | error
+  lastSyncedAt  DateTime?
+
+  connectedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  orders         EcomOrder[]
+  products       EcomProduct[]
+  customers      EcomCustomer[]
+  abandonedCarts EcomAbandonedCart[]
+  campaigns      EcomCampaign[]
+  webhookLogs    EcomWebhookLog[]
+
+  @@unique([userId, domain])
+  @@index([userId])
+  @@index([userId, platform])
+}
+
+/// Synced ecommerce order
+model EcomOrder {
+  id              String    @id @default(uuid())
+  userId          String
+  storeId         String
+  externalOrderId String // Platform order ID
+  customerName    String?
+  customerPhone   String?
+  customerEmail   String?
+  orderStatus     String    @default("pending") // pending | confirmed | processing | shipped | delivered | cancelled
+  paymentStatus   String    @default("pending") // pending | paid | failed | refunded | cod
+  paymentMethod   String?
+  totalAmount     Decimal   @default(0)
+  currency        String    @default("INR")
+  trackingNumber  String?
+  trackingUrl     String?
+  shippingAddress Json?
+  lineItems       Json? // Array of ordered products
+  whatsappStatus  String?   @default("pending") // pending | sent | failed
+  lastNotifiedAt  DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  store EcomStore @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, storeId])
+  @@index([userId, orderStatus])
+  @@index([storeId, externalOrderId])
+}
+
+/// Synced product catalog
+model EcomProduct {
+  id                String   @id @default(uuid())
+  userId            String
+  storeId           String
+  externalProductId String
+  title             String
+  description       String?  @db.Text
+  sku               String?
+  price             Decimal  @default(0)
+  comparePrice      Decimal?
+  stock             Int      @default(0)
+  stockStatus       String   @default("active") // active | low_stock | out_of_stock
+  category          String?
+  imageUrl          String?
+  productUrl        String?
+  rating            Decimal? @default(0)
+  totalSold         Int      @default(0)
+  syncedAt          DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  store EcomStore @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, externalProductId])
+  @@index([userId])
+  @@index([storeId])
+  @@index([userId, stockStatus])
+}
+
+/// Synced customer from ecommerce store
+model EcomCustomer {
+  id                 String    @id @default(uuid())
+  userId             String
+  storeId            String
+  externalCustomerId String
+  name               String
+  phone              String?
+  email              String?
+  whatsappNumber     String?
+  city               String?
+  country            String?   @default("India")
+  segment            String    @default("new") // new | loyal | vip | atrisk
+  tags               String[]
+  totalOrders        Int       @default(0)
+  totalSpent         Decimal   @default(0)
+  lastOrderAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  store EcomStore @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, externalCustomerId])
+  @@index([userId])
+  @@index([storeId])
+  @@index([userId, segment])
+}
+
+/// Abandoned shopping cart
+model EcomAbandonedCart {
+  id              String    @id @default(uuid())
+  userId          String
+  storeId         String
+  externalCartId  String?
+  customerName    String?
+  customerPhone   String?
+  customerEmail   String?
+  cartValue       Decimal   @default(0)
+  itemCount       Int       @default(0)
+  products        Json? // Array of cart items
+  checkoutUrl     String?
+  recoveryStatus  String    @default("pending") // pending | recovered | expired
+  reminderCount   Int       @default(0)
+  lastReminderAt  DateTime?
+  recoveredAt     DateTime?
+  recoveredAmount Decimal?
+  abandonedAt     DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  store EcomStore @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, recoveryStatus])
+  @@index([storeId])
+}
+
+/// Ecommerce automation flow
+model EcomAutomation {
+  id          String    @id @default(uuid())
+  userId      String
+  name        String
+  triggerType String // order_created | order_paid | order_shipped | order_delivered | cart_abandoned | customer_created | payment_failed | cod_order
+  storeScope  String    @default("all") // all | shopify | woocommerce | specific storeId
+  flowJson    Json      @default("{}") // Full automation flow steps
+  status      String    @default("draft") // draft | active | paused
+  totalRuns   Int       @default(0)
+  successRuns Int       @default(0)
+  lastRunAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, triggerType])
+}
+
+/// Ecommerce campaign (WhatsApp bulk send targeting store customers)
+model EcomCampaign {
+  id                String    @id @default(uuid())
+  userId            String
+  storeId           String?
+  name              String
+  campaignType      String    @default("promotional") // promotional | retention | announcement | abandoned
+  audienceSegment   String    @default("all") // all | vip | loyal | new | atrisk | abandoned
+  templateName      String?
+  status            String    @default("draft") // draft | scheduled | running | completed | paused | failed
+  audienceCount     Int       @default(0)
+  sentCount         Int       @default(0)
+  deliveredCount    Int       @default(0)
+  readCount         Int       @default(0)
+  clickCount        Int       @default(0)
+  revenueAttributed Decimal   @default(0)
+  scheduledAt       DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  store EcomStore? @relation(fields: [storeId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([userId, status])
+}
+
+/// Ecommerce-specific WhatsApp message template
+model EcomTemplate {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  displayName String
+  category    String   @default("order") // order | shipping | cart | promotion | support | general
+  body        String   @db.Text
+  language    String   @default("en")
+  variables   String[] // Variable names for {{1}}, {{2}}, etc.
+  status      String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([userId, category])
+}
+
+/// Inbound webhook event log from Shopify/WooCommerce
+model EcomWebhookLog {
+  id          String    @id @default(uuid())
+  userId      String
+  storeId     String?
+  platform    String // shopify | woocommerce
+  topic       String // e.g. orders/create, order.created
+  payload     Json
+  status      String    @default("received") // received | processed | failed | retrying
+  error       String?
+  retries     Int       @default(0)
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  store EcomStore? @relation(fields: [storeId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([userId, platform])
+  @@index([userId, status])
+  @@index([createdAt])
+}
+
+// ──────────────────────────────────────────────────────────────
+// AUTONOMOUS AI COMMERCE & PAYMENTS MODULE (PHASE A)
+// ──────────────────────────────────────────────────────────────
+
+model PaymentCredential {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  provider        String   @default("razorpay")
+  encryptedKeyId  String
+  encryptedSecret String
+  webhookSecret   String?
+  mode            String   @default("live") // live | test
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CheckoutSession {
+  id           String    @id @default(uuid())
+  userId       String
+  contactPhone String
+  externalId   String    @unique // Razorpay Payment Link ID
+  url          String
+  amount       Decimal
+  currency     String    @default("INR")
+  status       String    @default("issued") // issued, paid, expired, cancelled, failed
+  lineItems    Json
+  metadata     Json
+  expiresAt    DateTime
+  paidAt       DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId, contactPhone, status])
+}
+
+model WebhookEvent {
+  id              String    @id @default(uuid())
+  provider        String // "razorpay"
+  externalEventId String    @unique
+  topic           String
+  payload         Json
+  status          String    @default("pending") // pending, processed, failed
+  errorLog        String?
+  createdAt       DateTime  @default(now())
+  processedAt     DateTime?
+}
+
+// ==========================================
+// PHASE B: ENTERPRISE AI COMMERCE PLATFORM
+// ==========================================
+
+/// Workspace-level multi-gateway payment provider registry
+model PaymentGateway {
+  id              String    @id @default(uuid())
+  userId          String
+  provider        String // razorpay | stripe | phonepe | cashfree | upi
+  label           String    @default("Primary") // human-readable label
+  encryptedConfig String // AES-256 encrypted JSON of all keys/secrets
+  webhookSecret   String?
+  mode            String    @default("live") // live | test
+  isDefault       Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  priority        Int       @default(1) // lower = higher priority for failover
+  successCount    Int       @default(0)
+  failureCount    Int       @default(0)
+  lastUsedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider, label])
+  @@index([userId])
+  @@index([userId, isDefault])
+  @@index([userId, provider])
+}
+
+/// Subscription plan definitions per workspace
+model SubscriptionPlan {
+  id            String   @id @default(uuid())
+  userId        String
+  name          String
+  description   String?
+  amount        Decimal
+  currency      String   @default("INR")
+  interval      String   @default("monthly") // monthly | quarterly | yearly
+  intervalCount Int      @default(1)
+  trialDays     Int      @default(0)
+  isActive      Boolean  @default(true)
+  metadata      Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@index([userId])
+}
+
+/// Customer subscription records
+model Subscription {
+  id                 String    @id @default(uuid())
+  userId             String // workspace owner
+  planId             String
+  customerPhone      String
+  customerEmail      String?
+  customerName       String?
+  externalSubId      String? // provider subscription ID
+  provider           String    @default("razorpay")
+  status             String    @default("active") // active | paused | cancelled | past_due | trial
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelledAt        DateTime?
+  trialEndsAt        DateTime?
+  dunningAttempts    Int       @default(0)
+  nextRetryAt        DateTime?
+  metadata           Json      @default("{}")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  plan     SubscriptionPlan      @relation(fields: [planId], references: [id])
+  user     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoices SubscriptionInvoice[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([customerPhone])
+}
+
+/// Abandoned checkout recovery attempt tracking
+model AbandonedCheckoutRecovery {
+  id                String    @id @default(uuid())
+  userId            String
+  cartId            String? // links to EcomAbandonedCart
+  contactPhone      String
+  checkoutSessionId String? // links to CheckoutSession
+  recoveryUrl       String?
+  couponCode        String?
+  discountAmount    Decimal   @default(0)
+  status            String    @default("scheduled") // scheduled | sent | recovered | expired | failed
+  attemptNumber     Int       @default(1)
+  scheduledAt       DateTime
+  sentAt            DateTime?
+  recoveredAt       DateTime?
+  recoveredAmount   Decimal?
+  messageContent    String? // AI-generated recovery message text
+  aiReasoning       String? // Why AI chose this recovery strategy
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([contactPhone])
+  @@index([scheduledAt, status])
+}
+
+/// Computed customer intelligence / CRM scoring
+model CustomerIntelligence {
+  id                  String    @id @default(uuid())
+  userId              String
+  contactPhone        String
+  customerName        String?
+  ltv                 Decimal   @default(0) // Lifetime value in INR
+  orderCount          Int       @default(0)
+  avgOrderValue       Decimal   @default(0)
+  lastOrderAt         DateTime?
+  daysSinceLastOrder  Int       @default(0)
+  aiScore             Int       @default(50) // 0-100 AI-computed engagement score
+  churnRisk           String    @default("low") // low | medium | high
+  segment             String    @default("new") // new | occasional | loyal | vip | churned
+  tags                String[]  @default([])
+  preferredProducts   String[]  @default([]) // most purchased categories
+  recoveryAttempts    Int       @default(0)
+  recoverySuccessRate Decimal   @default(0)
+  isVip               Boolean   @default(false)
+  metadata            Json      @default("{}")
+  computedAt          DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([userId, contactPhone])
+  @@index([userId])
+  @@index([userId, segment])
+  @@index([userId, isVip])
+  @@index([userId, churnRisk])
+}
+
+/// Delivery and fulfillment tracking
+model DeliveryTracking {
+  id                String    @id @default(uuid())
+  userId            String
+  orderId           String // links to EcomOrder.id
+  provider          String // shiprocket | delhivery | custom
+  trackingId        String?
+  awbNumber         String? // Airway Bill Number
+  status            String    @default("pending") // pending | picked_up | in_transit | out_for_delivery | delivered | failed
+  currentLocation   String?
+  estimatedDelivery DateTime?
+  deliveredAt       DateTime?
+  lastWebhookAt     DateTime?
+  statusHistory     Json      @default("[]")
+  whatsappNotified  Boolean   @default(false)
+  lastNotifiedAt    DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([trackingId])
+  @@index([userId, status])
+}
+
+/// Immutable commerce audit trail
+model AuditTrail {
+  id         String   @id @default(uuid())
+  userId     String
+  actor      String // "system" | "ai" | "webhook" | "api" | phone number
+  action     String // e.g. "payment_link_created" | "order_created" | "subscription_cancelled"
+  entityType String // "CheckoutSession" | "EcomOrder" | "Subscription" etc.
+  entityId   String
+  before     Json? // state before action
+  after      Json? // state after action
+  ip         String?
+  userAgent  String?
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+/// Subscription Invoice lifecycle tracking
+model SubscriptionInvoice {
+  id                String    @id @default(uuid())
+  subscriptionId    String
+  userId            String
+  externalInvoiceId String?   @unique
+  amount            Decimal
+  currency          String    @default("INR")
+  status            String    @default("open") // open | paid | void | uncollectible
+  billingReason     String    @default("subscription_cycle") // subscription_create | subscription_cycle | dunning_retry
+  dueDate           DateTime
+  paidAt            DateTime?
+  pdfUrl            String?
+  metadata          Json      @default("{}")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([userId])
+  @@index([status])
+}
+
+// ==========================================
+// AI VOICE CALLING INFRASTRUCTURE
+// ==========================================
+
+model VoiceProvider {
+  id           String   @id @default(uuid())
+  name         String
+  slug         String   @unique
+  enabled      Boolean  @default(true)
+  priority     Int      @default(1)
+  sandboxMode  Boolean  @default(false)
+  configSchema Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userProviders UserVoiceProvider[]
+}
+
+model UserVoiceProvider {
+  id               String  @id @default(uuid())
+  userId           String
+  providerId       String
+  encryptedApiKey  String
+  encryptedAgentId String
+  encryptedVoiceId String?
+  active           Boolean @default(true)
+
+  user     User          @relation(fields: [userId], references: [id])
+  provider VoiceProvider @relation(fields: [providerId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model VoiceCallSession {
+  id              String   @id @default(uuid())
+  userId          String
+  contactId       String?
+  provider        String
+  externalCallId  String?
+  direction       String
+  status          String
+  transcript      Json?
+  summary         String?
+  leadScore       Float?
+  durationSeconds Int?
+  recordingUrl    String?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  transcripts VoiceTranscript[]
+}
+
+model VoiceTranscript {
+  id        String   @id @default(uuid())
+  sessionId String
+  speaker   String
+  message   String
+  timestamp DateTime @default(now())
+
+  session VoiceCallSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// AI VOICE ENTERPRISE UPGRADES
+// ==========================================
+
+model VoiceUsage {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  dailyMinutes    Int      @default(0)
+  monthlyMinutes  Int      @default(0)
+  totalCalls      Int      @default(0)
+  concurrentCalls Int      @default(0)
+  lastResetAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model VoiceQuota {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  maxDailyMinutes   Int      @default(100)
+  maxMonthlyMinutes Int      @default(3000)
+  maxConcurrent     Int      @default(1)
+  isHardStopActive  Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model VoiceBilling {
+  id              String   @id @default(uuid())
+  userId          String
+  provider        String
+  callId          String   @unique
+  cost            Decimal  @default(0.0)
+  currency        String   @default("USD")
+  durationSeconds Int
+  billedAt        DateTime @default(now())
+
+  @@index([userId])
+}
+
+model WorkingHours {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  timezone          String   @default("Asia/Kolkata")
+  schedule          Json     @default("{}")
+  holidayMode       Boolean  @default(false)
+  emergencyOverride Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model VoiceRecording {
+  id              String   @id @default(uuid())
+  userId          String
+  sessionId       String   @unique
+  storageProvider String   @default("s3") // s3, r2
+  fileKey         String
+  bucket          String
+  url             String
+  duration        Int
+  sizeBytes       Int?
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+}
+
+model VoiceComplianceLog {
+  id           String   @id @default(uuid())
+  userId       String
+  contactPhone String
+  action       String // e.g. "CONSENT_GIVEN", "DND_CHECK", "OPT_OUT"
+  details      Json?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, contactPhone])
+}
+
+model DemoAsset {
+  id              String   @id @default(uuid())
+  userId          String
+  name            String
+  productCategory String?
+  keywords        String[]
+  url             String
+  type            String   @default("video") // video, link, pdf
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model SignupAutomationLog {
+  id              String   @id @default(uuid())
+  userId          String   // Workspace ID
+  name            String
+  email           String
+  phone           String
+  plan            String
+  testMode        Boolean  @default(false)
+  whatsappStatus  String   // "PENDING", "SENT", "FAILED", "SUPPRESSED"
+  whatsappError   String?
+  voiceStatus     String   // "PENDING", "QUEUED", "COMPLETED", "FAILED", "SUPPRESSED"
+  voiceCallId     String?
+  voiceError      String?
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, phone, createdAt])
+}
