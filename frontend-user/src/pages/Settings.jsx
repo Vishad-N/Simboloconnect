@@ -119,7 +119,7 @@ const Settings = () => {
             config_id: branding.embeddedSignupConfigId,
             response_type: 'code', override_default_response_type: true,
             auth_type: 'rerequest',
-            scope: 'whatsapp_business_management,whatsapp_business_messaging,business_management',
+            scope: 'whatsapp_business_management,whatsapp_business_messaging',
             extras: { 
                 setup: {},
                 featureType: 'whatsapp_business_app_onboarding',
